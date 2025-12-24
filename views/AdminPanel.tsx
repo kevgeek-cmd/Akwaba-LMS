@@ -28,6 +28,8 @@ const AdminPanel: React.FC = () => {
     setNewUser({ name: '', firstName: '', email: '', role: UserRole.INSTRUCTOR });
   };
 
+  const inputClass = "w-full p-3 border rounded-xl outline-none focus:border-ivoryOrange text-gray-900 font-semibold placeholder:text-gray-400";
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
@@ -84,7 +86,7 @@ const AdminPanel: React.FC = () => {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${
                           user.role === UserRole.ADMIN ? 'bg-red-100 text-red-600' : 
                           user.role === UserRole.EDITOR ? 'bg-blue-100 text-blue-600' :
-                          user.role === UserRole.INSTRUCTOR ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
+                          user.role === UserRole.INSTRUCTOR ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-700'
                         }`}>
                           {user.role}
                         </span>
@@ -106,7 +108,6 @@ const AdminPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Modal d'ajout de Staff */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -116,12 +117,12 @@ const AdminPanel: React.FC = () => {
             </div>
             <form onSubmit={handleAddStaff} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <input required placeholder="Nom" className="p-3 border rounded-xl outline-none focus:border-ivoryOrange" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
-                <input required placeholder="Prénom" className="p-3 border rounded-xl outline-none focus:border-ivoryOrange" value={newUser.firstName} onChange={e => setNewUser({...newUser, firstName: e.target.value})} />
+                <input required placeholder="Nom" className={inputClass} value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                <input required placeholder="Prénom" className={inputClass} value={newUser.firstName} onChange={e => setNewUser({...newUser, firstName: e.target.value})} />
               </div>
-              <input required type="email" placeholder="Email professionnel" className="w-full p-3 border rounded-xl outline-none focus:border-ivoryOrange" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+              <input required type="email" placeholder="Email professionnel" className={inputClass} value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
               <select 
-                className="w-full p-3 border rounded-xl outline-none focus:border-ivoryOrange bg-white font-bold"
+                className="w-full p-3 border rounded-xl outline-none focus:border-ivoryOrange bg-white font-bold text-gray-900"
                 value={newUser.role}
                 onChange={e => setNewUser({...newUser, role: e.target.value as UserRole})}
               >
@@ -129,10 +130,6 @@ const AdminPanel: React.FC = () => {
                 <option value={UserRole.EDITOR}>Éditeur de contenu</option>
                 <option value={UserRole.ADMIN}>Administrateur système</option>
               </select>
-              <div className="bg-yellow-50 p-4 rounded-xl flex gap-3 items-start border border-yellow-100">
-                <Star className="text-yellow-600 flex-shrink-0" size={18} />
-                <p className="text-[10px] text-yellow-800">En créant ce compte, vous accordez des droits de gestion. Un email de configuration sera envoyé automatiquement.</p>
-              </div>
               <button type="submit" className="w-full py-4 bg-ivoryOrange text-white rounded-2xl font-bold shadow-lg hover:bg-orange-600">
                 Créer l'accès personnel
               </button>

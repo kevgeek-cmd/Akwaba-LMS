@@ -34,6 +34,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     setIsLogin(true);
   };
 
+  const inputClass = "w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all placeholder:text-gray-400";
+  const iconClass = "absolute left-4 top-1/2 -translate-y-1/2 text-gray-400";
+
   return (
     <div className="min-h-[85vh] flex flex-col items-center justify-center p-4 gap-8">
       <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-gray-100">
@@ -74,18 +77,18 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
         <div className="p-10 md:w-3/5">
           <div className="mb-10 text-center md:text-left">
             <h1 className="text-3xl font-black text-gray-900 mb-2">{isLogin ? 'Connexion' : 'Nouvel Étudiant'}</h1>
-            <p className="text-gray-400 text-sm">{isLogin ? 'Entrez vos accès pour continuer' : 'Remplissez les informations ci-dessous'}</p>
+            <p className="text-gray-500 text-sm">{isLogin ? 'Entrez vos accès pour continuer' : 'Remplissez les informations ci-dessous'}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <input required placeholder="Nom" className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
-                  <UserIcon className="absolute left-3.5 top-4.5 text-gray-400" size={18} />
+                  <input required placeholder="Nom" className={inputClass} />
+                  <UserIcon className={iconClass} size={20} />
                 </div>
                 <div className="relative">
-                  <input required placeholder="Prénom" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
+                  <input required placeholder="Prénom" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all placeholder:text-gray-400" />
                 </div>
               </div>
             )}
@@ -97,21 +100,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
                 placeholder="Email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" 
+                className={inputClass} 
               />
-              <Mail className="absolute left-3.5 top-4.5 text-gray-400" size={18} />
+              <Mail className={iconClass} size={20} />
             </div>
 
             <div className="relative">
-              <input required type="password" placeholder="Mot de passe" className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
-              <Lock className="absolute left-3.5 top-4.5 text-gray-400" size={18} />
+              <input required type="password" placeholder="Mot de passe" className={inputClass} />
+              <Lock className={iconClass} size={20} />
             </div>
 
             {!isLogin && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <input required type="number" placeholder="Âge" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
-                  <select required className="w-full px-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all">
+                  <input required type="number" placeholder="Âge" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all placeholder:text-gray-400" />
+                  <select required className="w-full px-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all">
                     <option value="">Niveau scolaire</option>
                     <option>Primaire</option>
                     <option>Collège</option>
@@ -121,12 +124,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
                   </select>
                 </div>
                 <div className="relative">
-                  <input required placeholder="Téléphone (+225)" className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
-                  <Phone className="absolute left-3.5 top-4.5 text-gray-400" size={18} />
+                  <input required placeholder="Téléphone (+225)" className={inputClass} />
+                  <Phone className={iconClass} size={20} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <input required placeholder="Ville (ex: Abidjan)" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
-                  <input required placeholder="Quartier" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-50 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-sm transition-all" />
+                  <input required placeholder="Ville (ex: Abidjan)" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all placeholder:text-gray-400" />
+                  <input required placeholder="Quartier" className="w-full px-4 py-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-ivoryOrange outline-none text-base text-gray-900 font-semibold transition-all placeholder:text-gray-400" />
                 </div>
               </>
             )}
