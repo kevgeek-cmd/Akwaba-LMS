@@ -1,0 +1,8 @@
+{
+  "name": "Akwaba LMS",
+  "description": "A modern, Ivory Coast-themed Learning Management System (LMS) with student dashboards, instructor tools, and an admin management panel.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
