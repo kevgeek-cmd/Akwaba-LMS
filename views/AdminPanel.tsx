@@ -4,6 +4,7 @@ import { storage } from '../utils/storage';
 import { User, UserRole, Course, Enrollment, ChatMessage } from '../types';
 import { Search, UserPlus, X, Edit2, Trash2, Save, Filter, BookOpen, MessageSquare, Send, Paperclip, AlertTriangle } from 'lucide-react';
 import InstructorSpace from './InstructorSpace'; // Reuse for global course edit
+import ChatWindow from '../components/ChatWindow';
 
 const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
   const [activeTab, setActiveTab] = useState<'staff' | 'students' | 'courses' | 'messages'>('staff');
@@ -15,6 +16,7 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showCourseDeleteConfirm, setShowCourseDeleteConfirm] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   
@@ -68,6 +70,12 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     const updated = storage.getUsers().filter(u => u.id !== id);
     storage.saveUsers(updated);
     setShowDeleteConfirm(null);
+  };
+
+  const confirmCourseDelete = (id: string) => {
+    const updated = storage.getCourses().filter(c => c.id !== id);
+    storage.saveCourses(updated);
+    setShowCourseDeleteConfirm(null);
   };
 
   const handleReassign = () => {
@@ -132,7 +140,7 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Supervision Centrale</h1>
-          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-1">Espace Administration Akwaba</p>
+          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-1">Plateforme Akwaba Administration</p>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-2xl">
           {(['staff', 'students', 'courses', 'messages'] as const).map(tab => (
@@ -142,25 +150,14 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
       </div>
 
       {activeTab === 'messages' ? (
-        <div className="grid md:grid-cols-2 gap-10">
-          <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-50">
+        <div className="grid lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-1 bg-white p-10 rounded-[40px] shadow-xl border border-gray-50 h-fit">
             <h2 className="text-2xl font-black mb-6 flex items-center gap-3 text-ivoryOrange"><MessageSquare/> Diffusion Globale</h2>
-            <textarea value={globalMessage} onChange={e => setGlobalMessage(e.target.value)} rows={6} className="w-full p-6 bg-gray-50 rounded-3xl border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900 mb-6" placeholder="Écrivez un message à tous les utilisateurs..."></textarea>
+            <textarea value={globalMessage} onChange={e => setGlobalMessage(e.target.value)} rows={6} className="w-full p-6 bg-gray-50 rounded-3xl border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 mb-6" placeholder="Message global..."></textarea>
             <button onClick={handleSendGlobal} className="w-full py-4 bg-ivoryGreen text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:scale-105 transition-all"><Send size={20}/> ENVOYER À TOUS</button>
           </div>
-          <div className="bg-gray-900 p-10 rounded-[40px] text-white shadow-2xl">
-            <h2 className="text-2xl font-black mb-6">Aperçu Notifications</h2>
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4">
-              {storage.getMessages().filter(m => m.toId === 'global').reverse().map(m => (
-                <div key={m.id} className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-ivoryOrange">ADMINISTRATION</span>
-                    <span className="text-[10px] opacity-40">{new Date(m.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-sm opacity-80">{m.text}</p>
-                </div>
-              ))}
-            </div>
+          <div className="lg:col-span-2">
+             <ChatWindow currentUser={storage.getUsers().find(u => u.id === currentUserId)!} />
           </div>
         </div>
       ) : activeTab === 'courses' ? (
@@ -171,8 +168,8 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
                <div className="p-8">
                  <h3 className="font-black text-xl mb-4 text-gray-900">{c.title}</h3>
                  <div className="flex gap-2">
-                    <button onClick={() => setEditingCourseId(c.id)} className="flex-1 py-3 bg-ivoryOrange text-white rounded-xl font-black text-xs">ÉDITER CONTENU</button>
-                    <button onClick={() => { if(confirm("Supprimer ce cours ?")) storage.saveCourses(courses.filter(x => x.id !== c.id)) }} className="p-3 bg-red-50 text-red-500 rounded-xl"><Trash2 size={20}/></button>
+                    <button onClick={() => setEditingCourseId(c.id)} className="flex-1 py-3 bg-ivoryOrange text-white rounded-xl font-black text-xs uppercase">Éditer</button>
+                    <button onClick={() => setShowCourseDeleteConfirm(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={20}/></button>
                  </div>
                </div>
              </div>
@@ -183,32 +180,28 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
           <div className="p-8 bg-gray-50/50 flex flex-wrap gap-4 items-center justify-between border-b">
             <div className="relative flex-grow max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-transparent bg-white focus:border-ivoryOrange outline-none font-bold text-gray-900 shadow-sm transition-all" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher utilisateur..." className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-transparent bg-white focus:border-ivoryOrange outline-none font-bold text-gray-900 shadow-sm" />
             </div>
             
             {activeTab === 'students' && (
               <div className="flex gap-2">
-                <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="p-4 bg-white rounded-2xl border border-gray-100 text-xs font-black uppercase">
+                <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="p-4 bg-white rounded-2xl border border-gray-100 text-xs font-black uppercase outline-none">
                   <option>Toutes</option>
                   {Array.from(new Set(courses.map(c => c.category))).map(cat => <option key={cat}>{cat}</option>)}
-                </select>
-                <select value={instFilter} onChange={e => setInstFilter(e.target.value)} className="p-4 bg-white rounded-2xl border border-gray-100 text-xs font-black uppercase">
-                  <option value="Tous">Tous Profs</option>
-                  {users.filter(u => u.role === UserRole.INSTRUCTOR).map(u => <option key={u.id} value={u.id}>{u.firstName}</option>)}
                 </select>
                 <button onClick={() => setShowEnrollModal(true)} className="px-6 bg-ivoryOrange text-white rounded-2xl font-black text-xs flex items-center gap-2"><BookOpen size={16}/> RÉAFFECTER</button>
               </div>
             )}
             
-            <button onClick={() => { setEditingUser(null); setUserFormData({role: activeTab === 'staff' ? UserRole.INSTRUCTOR : UserRole.STUDENT}); setShowUserModal(true); }} className="px-8 py-4 bg-ivoryGreen text-white rounded-2xl font-black flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg active:scale-95"><UserPlus size={18} /> NOUVEAU</button>
+            <button onClick={() => { setEditingUser(null); setUserFormData({role: activeTab === 'staff' ? UserRole.INSTRUCTOR : UserRole.STUDENT}); setShowUserModal(true); }} className="px-8 py-4 bg-ivoryGreen text-white rounded-2xl font-black flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg"><UserPlus size={18} /> AJOUTER</button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] border-b border-gray-100">
                 <tr>
-                  <th className="px-10 py-6">Utilisateur</th>
-                  <th className="px-10 py-6">{activeTab === 'students' ? 'Cours Actuel' : 'Rôle'}</th>
+                  <th className="px-10 py-6">Profil</th>
+                  <th className="px-10 py-6">{activeTab === 'students' ? 'Formation' : 'Rôle'}</th>
                   <th className="px-10 py-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -227,9 +220,9 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
                     <td className="px-10 py-8">
                       {activeTab === 'students' ? (
                         <div className="flex items-center gap-2">
-                           <span className="w-2 h-2 bg-ivoryOrange rounded-full animate-pulse"></span>
+                           <span className="w-2 h-2 bg-ivoryOrange rounded-full"></span>
                            <span className="text-sm font-black text-gray-600 uppercase">
-                             {courses.find(c => c.id === enrollments.find(e => e.userId === u.id)?.courseId)?.title || "Non Inscrit"}
+                             {courses.find(c => c.id === enrollments.find(e => e.userId === u.id)?.courseId)?.title || "Aucun"}
                            </span>
                         </div>
                       ) : (
@@ -250,41 +243,41 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
+      {/* Popups de confirmation de suppression */}
+      {(showDeleteConfirm || showCourseDeleteConfirm) && (
         <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
           <div className="bg-white p-12 rounded-[48px] max-w-md w-full text-center space-y-8 animate-in zoom-in duration-300">
             <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border-8 border-white shadow-xl">
                <AlertTriangle size={48} />
             </div>
-            <h3 className="text-3xl font-black text-gray-900">Confirmer suppression ?</h3>
-            <p className="text-gray-400 font-bold">Cette action est irréversible. Les données de cet utilisateur seront perdues à jamais.</p>
+            <h3 className="text-3xl font-black text-gray-900">Valider suppression ?</h3>
+            <p className="text-gray-400 font-bold">Cette action est définitive. Les données seront effacées du système Akwaba.</p>
             <div className="flex gap-4">
-              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-black text-gray-400 hover:bg-gray-200 transition-all">ANNULER</button>
-              <button onClick={() => confirmDelete(showDeleteConfirm)} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-600 transition-all uppercase tracking-widest text-xs">Supprimer</button>
+              <button onClick={() => { setShowDeleteConfirm(null); setShowCourseDeleteConfirm(null); }} className="flex-1 py-4 bg-gray-100 rounded-2xl font-black text-gray-400 hover:bg-gray-200 transition-all">ANNULER</button>
+              <button onClick={() => showDeleteConfirm ? confirmDelete(showDeleteConfirm) : confirmCourseDelete(showCourseDeleteConfirm!)} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl hover:bg-red-600 transition-all uppercase tracking-widest text-xs">CONFIRMER</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Reassign Modal */}
+      {/* Modal Reassign */}
       {showEnrollModal && (
         <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white p-10 rounded-[48px] max-w-md w-full space-y-8 animate-in slide-in-from-bottom-10 duration-500 shadow-2xl">
-            <h3 className="text-3xl font-black text-ivoryOrange tracking-tighter">Réaffecter Étudiant</h3>
+            <h3 className="text-3xl font-black text-ivoryOrange tracking-tighter">Réaffecter Élève</h3>
             <div className="space-y-4">
-              <select onChange={e => setEnrollFormData({...enrollFormData, userId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900">
+              <select onChange={e => setEnrollFormData({...enrollFormData, userId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900">
                 <option value="">Sélectionner Apprenant</option>
                 {users.filter(u => u.role === UserRole.STUDENT).map(u => <option key={u.id} value={u.id}>{u.firstName} {u.name}</option>)}
               </select>
-              <select onChange={e => setEnrollFormData({...enrollFormData, courseId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900">
+              <select onChange={e => setEnrollFormData({...enrollFormData, courseId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900">
                 <option value="">Sélectionner Nouveau Cours</option>
                 {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
               </select>
             </div>
             <div className="flex gap-4">
               <button onClick={() => setShowEnrollModal(false)} className="flex-1 py-4 text-gray-400 font-black text-xs uppercase">Annuler</button>
-              <button onClick={handleReassign} className="flex-1 py-4 bg-ivoryGreen text-white rounded-2xl font-black shadow-lg">VALIDER</button>
+              <button onClick={handleReassign} className="flex-1 py-4 bg-ivoryGreen text-white rounded-2xl font-black shadow-lg">RE-AFFECTER</button>
             </div>
           </div>
         </div>
@@ -300,14 +293,14 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
             </div>
             <div className="p-10 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                 <input required value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Nom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900" />
-                 <input required value={userFormData.firstName || ''} onChange={e => setUserFormData({...userFormData, firstName: e.target.value})} placeholder="Prénom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900" />
+                 <input required value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Nom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
+                 <input required value={userFormData.firstName || ''} onChange={e => setUserFormData({...userFormData, firstName: e.target.value})} placeholder="Prénom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
               </div>
-              <input required type="email" value={userFormData.email || ''} onChange={e => setUserFormData({...userFormData, email: e.target.value})} placeholder="Email" className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900" />
-              <select value={userFormData.role} onChange={e => setUserFormData({...userFormData, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900 appearance-none">
+              <input required type="email" value={userFormData.email || ''} onChange={e => setUserFormData({...userFormData, email: e.target.value})} placeholder="Email" className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
+              <select value={userFormData.role} onChange={e => setUserFormData({...userFormData, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none appearance-none">
                 {Object.values(UserRole).map(role => <option key={role} value={role}>{role.toUpperCase()}</option>)}
               </select>
-              <button type="submit" className="w-full py-5 bg-ivoryGreen text-white rounded-2xl font-black text-xl shadow-xl">ENREGISTRER</button>
+              <button type="submit" className="w-full py-5 bg-ivoryGreen text-white rounded-2xl font-black text-xl shadow-xl uppercase">Enregistrer</button>
             </div>
           </form>
         </div>

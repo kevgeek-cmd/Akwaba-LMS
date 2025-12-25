@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, ChatMessage, UserRole } from '../types';
 import { storage } from '../utils/storage';
-// Added missing MessageSquare to the lucide-react imports
-import { Send, Paperclip, FileText, CheckCircle2, User as UserIcon, X, Download, MessageSquare } from 'lucide-react';
+import { Send, Paperclip, FileText, CheckCircle2, User as UserIcon, X, Download, MessageSquare, Play, Maximize2 } from 'lucide-react';
 
 const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -71,6 +70,43 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
            (m.fromId === contactId && m.toId === currentUser.id);
   });
 
+  const renderFilePreview = (m: ChatMessage) => {
+    if (!m.fileData) return null;
+
+    if (m.fileType?.startsWith('image/')) {
+      return (
+        <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg group relative">
+          <img src={m.fileData} alt={m.fileName} className="w-full max-h-64 object-cover" />
+          <a href={m.fileData} download={m.fileName} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+             <Download className="text-white" size={32} />
+          </a>
+        </div>
+      );
+    }
+
+    if (m.fileType?.startsWith('video/')) {
+      return (
+        <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 shadow-lg bg-black/10">
+          <video controls className="w-full max-h-64">
+            <source src={m.fileData} type={m.fileType} />
+            Votre navigateur ne supporte pas la vidéo.
+          </video>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`mt-3 p-4 rounded-2xl flex items-center gap-4 ${m.fromId === currentUser.id ? 'bg-white/10' : 'bg-gray-50'}`}>
+        <FileText size={24} className={m.fromId === currentUser.id ? 'text-white' : 'text-ivoryOrange'} />
+        <div className="flex-grow overflow-hidden">
+          <p className="text-xs font-black truncate">{m.fileName}</p>
+          <p className="text-[9px] font-bold opacity-60 uppercase">{(m.fileSize! / (1024*1024)).toFixed(2)} MB</p>
+        </div>
+        <a href={m.fileData} download={m.fileName} className="p-2 hover:bg-black/5 rounded-lg transition-all"><Download size={16}/></a>
+      </div>
+    );
+  };
+
   return (
     <div className="flex bg-white rounded-[48px] shadow-2xl border border-gray-100 overflow-hidden h-[700px] animate-in slide-in-from-right duration-500">
       <div className="w-80 border-r border-gray-50 flex flex-col">
@@ -82,7 +118,7 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${selectedContact === 'global' ? 'bg-white/20' : 'bg-ivoryOrange text-white'}`}>@</div>
             <div>
               <p className="font-black text-sm">Général</p>
-              <p className={`text-[10px] uppercase font-bold ${selectedContact === 'global' ? 'text-white/60' : 'text-gray-400'}`}>Toute la plateforme</p>
+              <p className={`text-[10px] uppercase font-bold ${selectedContact === 'global' ? 'text-white/60' : 'text-gray-400'}`}>Chat plateforme</p>
             </div>
           </button>
           {contacts.map(u => (
@@ -109,7 +145,7 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
                 )}
                 <div>
                   <h4 className="font-black text-gray-900">{selectedContact === 'global' ? 'Discussion Générale' : `${selectedContact.firstName} ${selectedContact.name}`}</h4>
-                  <p className="text-[10px] font-bold text-ivoryGreen uppercase tracking-widest">En ligne</p>
+                  <p className="text-[10px] font-bold text-ivoryGreen uppercase tracking-widest">Connecté</p>
                 </div>
               </div>
             </div>
@@ -117,24 +153,15 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
             <div ref={scrollRef} className="flex-grow overflow-y-auto p-10 space-y-6">
               {chatMessages.map(m => (
                 <div key={m.id} className={`flex ${m.fromId === currentUser.id ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-                  <div className={`max-w-[70%] p-5 rounded-[32px] space-y-3 shadow-sm ${m.fromId === currentUser.id ? 'bg-ivoryGreen text-white rounded-br-none' : 'bg-white text-gray-900 rounded-bl-none border border-gray-100'}`}>
+                  <div className={`max-w-[75%] p-5 rounded-[32px] shadow-sm ${m.fromId === currentUser.id ? 'bg-ivoryGreen text-white rounded-br-none' : 'bg-white text-gray-900 rounded-bl-none border border-gray-100'}`}>
                     {m.toId === 'global' && m.fromId !== currentUser.id && (
                       <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block mb-1">
                         {storage.getUsers().find(u => u.id === m.fromId)?.firstName || 'Utilisateur'}
                       </span>
                     )}
-                    <p className="font-medium text-sm leading-relaxed">{m.text}</p>
-                    {m.fileName && (
-                      <div className={`p-4 rounded-2xl flex items-center gap-4 ${m.fromId === currentUser.id ? 'bg-white/10' : 'bg-gray-50'}`}>
-                        <FileText size={24} className={m.fromId === currentUser.id ? 'text-white' : 'text-ivoryOrange'} />
-                        <div className="flex-grow overflow-hidden">
-                          <p className="text-xs font-black truncate">{m.fileName}</p>
-                          <p className="text-[9px] font-bold opacity-60 uppercase">{(m.fileSize! / (1024*1024)).toFixed(2)} MB</p>
-                        </div>
-                        <a href={m.fileData} download={m.fileName} className="p-2 hover:bg-black/5 rounded-lg transition-all"><Download size={16}/></a>
-                      </div>
-                    )}
-                    <span className="text-[8px] font-bold opacity-40 block text-right">{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    {m.text && <p className="font-medium text-sm leading-relaxed">{m.text}</p>}
+                    {renderFilePreview(m)}
+                    <span className="text-[8px] font-bold opacity-40 block text-right mt-1">{new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                   </div>
                 </div>
               ))}
@@ -150,10 +177,10 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
               )}
               <div className="flex gap-4">
                 <div className="relative flex-grow">
-                  <input value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Écrire un message..." className="w-full pl-6 pr-14 py-5 rounded-[32px] bg-gray-50 border-2 border-transparent focus:border-ivoryOrange outline-none font-bold text-gray-900 transition-all shadow-sm" />
+                  <input value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Écrire un message..." className="w-full pl-6 pr-14 py-5 rounded-[32px] bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 transition-all shadow-sm" />
                   <label className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-ivoryOrange transition-all cursor-pointer">
                     <Paperclip size={20} />
-                    <input type="file" className="hidden" onChange={handleFileChange} />
+                    <input type="file" className="hidden" onChange={handleFileChange} accept="image/*,video/*,application/pdf,.doc,.docx" />
                   </label>
                 </div>
                 <button onClick={sendMessage} className="p-5 bg-ivoryGreen text-white rounded-[24px] shadow-xl hover:scale-110 active:scale-90 transition-all"><Send size={24} /></button>
@@ -163,8 +190,8 @@ const ChatWindow: React.FC<{ currentUser: User }> = ({ currentUser }) => {
         ) : (
           <div className="flex-grow flex flex-col items-center justify-center text-gray-300 p-20 text-center">
             <MessageSquare size={80} className="mb-6 opacity-10" />
-            <h3 className="text-2xl font-black uppercase tracking-[0.3em]">Sélectionnez un contact</h3>
-            <p className="font-bold mt-2">Échangez des fichiers et des idées instantanément.</p>
+            <h3 className="text-2xl font-black uppercase tracking-[0.3em]">Communication Directe</h3>
+            <p className="font-bold mt-2">Échangez avec les professeurs ou les apprenants.</p>
           </div>
         )}
       </div>
