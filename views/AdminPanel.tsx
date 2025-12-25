@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../utils/storage';
 import { User, UserRole, Course, Enrollment, ChatMessage } from '../types';
 import { Search, UserPlus, X, Edit2, Trash2, Save, Filter, BookOpen, MessageSquare, Send, Paperclip, AlertTriangle } from 'lucide-react';
-import InstructorSpace from './InstructorSpace'; // Reuse for global course edit
+import InstructorSpace from './InstructorSpace'; // Récupération pour l'édition globale
 import ChatWindow from '../components/ChatWindow';
 
 const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
@@ -63,7 +63,7 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     }
     storage.saveUsers(updated);
     setShowUserModal(false);
-    alert("Utilisateur mis à jour !");
+    alert("Compte enregistré avec succès !");
   };
 
   const confirmDelete = (id: string) => {
@@ -76,6 +76,7 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     const updated = storage.getCourses().filter(c => c.id !== id);
     storage.saveCourses(updated);
     setShowCourseDeleteConfirm(null);
+    alert("Le cours a été supprimé de la plateforme.");
   };
 
   const handleReassign = () => {
@@ -90,7 +91,7 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     }];
     storage.saveEnrollments(updated);
     setShowEnrollModal(false);
-    alert("Étudiant réaffecté avec succès !");
+    alert("Apprenant réaffecté.");
   };
 
   const handleSendGlobal = () => {
@@ -105,30 +106,20 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
     };
     storage.saveMessages([...msgs, newMessage]);
     setGlobalMessage('');
-    alert("Message envoyé à toute la plateforme !");
+    alert("Message diffusé à tous les membres !");
   };
 
-  // Filter Logic
   const filteredUsers = users.filter(u => {
     const isRoleMatch = activeTab === 'staff' ? u.role !== UserRole.STUDENT : u.role === UserRole.STUDENT;
     const searchMatch = (u.name + u.firstName + u.email).toLowerCase().includes(search.toLowerCase());
-    
-    if (activeTab === 'students') {
-      const userEnroll = enrollments.find(e => e.userId === u.id);
-      const course = courses.find(c => c.id === userEnroll?.courseId);
-      const categoryMatch = catFilter === 'Toutes' || course?.category === catFilter;
-      const instructorMatch = instFilter === 'Tous' || course?.instructorId === instFilter;
-      return isRoleMatch && searchMatch && categoryMatch && instructorMatch;
-    }
-    
     return isRoleMatch && searchMatch;
   });
 
   if (editingCourseId) {
     return (
-      <div className="p-8">
-        <button onClick={() => setEditingCourseId(null)} className="mb-6 flex items-center gap-2 text-ivoryGreen font-black uppercase text-xs hover:gap-3 transition-all">
-          <Filter size={16}/> Retour supervision
+      <div className="p-8 animate-in slide-in-from-left duration-500">
+        <button onClick={() => setEditingCourseId(null)} className="mb-10 flex items-center gap-3 text-ivoryGreen font-black uppercase text-xs hover:gap-5 transition-all bg-ivoryGreen/5 px-6 py-3 rounded-2xl w-fit">
+          <Filter size={18}/> Retour au Panel Admin
         </button>
         <InstructorSpace userRole={UserRole.ADMIN} currentUserId={currentUserId} forceEditId={editingCourseId} />
       </div>
@@ -136,103 +127,93 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+    <div className="container mx-auto px-4 py-12 max-w-7xl animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-8">
         <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Supervision Centrale</h1>
-          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-1">Plateforme Akwaba Administration</p>
+          <h1 className="text-5xl font-black text-gray-900 tracking-tighter">Administration</h1>
+          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.4em] mt-2">PLATEFORME AKWABA • ABIDJAN</p>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-2xl">
+        <div className="flex bg-white p-1.5 rounded-[24px] shadow-sm border border-gray-100">
           {(['staff', 'students', 'courses', 'messages'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all uppercase ${activeTab === tab ? 'bg-ivoryGreen text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}>{tab}</button>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-8 py-3.5 rounded-[18px] font-black text-[10px] transition-all uppercase tracking-widest ${activeTab === tab ? 'bg-ivoryGreen text-white shadow-xl' : 'text-gray-400 hover:text-gray-600'}`}>
+              {tab === 'staff' ? 'ÉQUIPE' : tab === 'students' ? 'ÉLÈVES' : tab === 'courses' ? 'COURS' : 'MESSAGES'}
+            </button>
           ))}
         </div>
       </div>
 
       {activeTab === 'messages' ? (
-        <div className="grid lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-1 bg-white p-10 rounded-[40px] shadow-xl border border-gray-50 h-fit">
-            <h2 className="text-2xl font-black mb-6 flex items-center gap-3 text-ivoryOrange"><MessageSquare/> Diffusion Globale</h2>
-            <textarea value={globalMessage} onChange={e => setGlobalMessage(e.target.value)} rows={6} className="w-full p-6 bg-gray-50 rounded-3xl border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 mb-6" placeholder="Message global..."></textarea>
-            <button onClick={handleSendGlobal} className="w-full py-4 bg-ivoryGreen text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:scale-105 transition-all"><Send size={20}/> ENVOYER À TOUS</button>
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-1 bg-white p-12 rounded-[56px] shadow-2xl border border-gray-50 h-fit">
+            <div className="w-20 h-20 bg-ivoryOrange/10 text-ivoryOrange rounded-[32px] flex items-center justify-center mb-10">
+              <MessageSquare size={40} />
+            </div>
+            <h2 className="text-3xl font-black mb-6 text-gray-900 tracking-tighter leading-none">Diffusion Publique</h2>
+            <p className="text-gray-400 font-bold text-sm mb-10 leading-relaxed">Envoyez un message qui sera visible par absolument tous les utilisateurs dans le canal général.</p>
+            <textarea value={globalMessage} onChange={e => setGlobalMessage(e.target.value)} rows={5} className="w-full p-6 bg-gray-50 rounded-3xl border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 mb-6 shadow-inner transition-all" placeholder="Que voulez-vous annoncer ?"></textarea>
+            <button onClick={handleSendGlobal} className="w-full py-5 bg-ivoryGreen text-white rounded-3xl font-black text-lg shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4"><Send size={24}/> DIFFUSER</button>
           </div>
           <div className="lg:col-span-2">
              <ChatWindow currentUser={storage.getUsers().find(u => u.id === currentUserId)!} />
           </div>
         </div>
       ) : activeTab === 'courses' ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-12">
            {courses.map(c => (
-             <div key={c.id} className="bg-white rounded-[40px] overflow-hidden border border-gray-100 shadow-sm group">
-               <img src={c.thumbnail} className="w-full h-40 object-cover" />
-               <div className="p-8">
-                 <h3 className="font-black text-xl mb-4 text-gray-900">{c.title}</h3>
-                 <div className="flex gap-2">
-                    <button onClick={() => setEditingCourseId(c.id)} className="flex-1 py-3 bg-ivoryOrange text-white rounded-xl font-black text-xs uppercase">Éditer</button>
-                    <button onClick={() => setShowCourseDeleteConfirm(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={20}/></button>
+             <div key={c.id} className="bg-white rounded-[56px] overflow-hidden border border-gray-100 shadow-sm group hover:shadow-2xl transition-all">
+               <div className="h-48 relative overflow-hidden">
+                 <img src={c.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                 <div className="absolute inset-0 bg-black/20"></div>
+                 <div className="absolute top-6 left-6 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl text-[10px] font-black text-ivoryGreen uppercase tracking-widest">{c.category}</div>
+               </div>
+               <div className="p-10">
+                 <h3 className="font-black text-2xl mb-8 text-gray-900 leading-tight h-[4rem] line-clamp-2">{c.title}</h3>
+                 <div className="flex gap-4">
+                    <button onClick={() => setEditingCourseId(c.id)} className="flex-1 py-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-ivoryOrange hover:text-white transition-all">Modifier</button>
+                    <button onClick={() => setShowCourseDeleteConfirm(c.id)} className="p-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"><Trash2 size={24}/></button>
                  </div>
                </div>
              </div>
            ))}
         </div>
       ) : (
-        <div className="bg-white rounded-[40px] shadow-2xl border border-gray-50 overflow-hidden">
-          <div className="p-8 bg-gray-50/50 flex flex-wrap gap-4 items-center justify-between border-b">
-            <div className="relative flex-grow max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher utilisateur..." className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-transparent bg-white focus:border-ivoryOrange outline-none font-bold text-gray-900 shadow-sm" />
+        <div className="bg-white rounded-[56px] shadow-2xl border border-gray-100 overflow-hidden">
+          <div className="p-10 bg-gray-50/50 flex flex-wrap gap-6 items-center justify-between border-b">
+            <div className="relative flex-grow max-w-xl">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={24} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher par nom ou email..." className="w-full pl-16 pr-8 py-6 rounded-[32px] border-4 border-white bg-white focus:border-ivoryOrange outline-none font-black text-gray-900 shadow-xl transition-all" />
             </div>
-            
-            {activeTab === 'students' && (
-              <div className="flex gap-2">
-                <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="p-4 bg-white rounded-2xl border border-gray-100 text-xs font-black uppercase outline-none">
-                  <option>Toutes</option>
-                  {Array.from(new Set(courses.map(c => c.category))).map(cat => <option key={cat}>{cat}</option>)}
-                </select>
-                <button onClick={() => setShowEnrollModal(true)} className="px-6 bg-ivoryOrange text-white rounded-2xl font-black text-xs flex items-center gap-2"><BookOpen size={16}/> RÉAFFECTER</button>
-              </div>
-            )}
-            
-            <button onClick={() => { setEditingUser(null); setUserFormData({role: activeTab === 'staff' ? UserRole.INSTRUCTOR : UserRole.STUDENT}); setShowUserModal(true); }} className="px-8 py-4 bg-ivoryGreen text-white rounded-2xl font-black flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg"><UserPlus size={18} /> AJOUTER</button>
+            <button onClick={() => { setEditingUser(null); setUserFormData({role: activeTab === 'staff' ? UserRole.INSTRUCTOR : UserRole.STUDENT}); setShowUserModal(true); }} className="px-12 py-6 bg-ivoryGreen text-white rounded-[32px] font-black text-lg flex items-center gap-4 hover:scale-105 transition-all shadow-2xl"><UserPlus size={24} /> AJOUTER</button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-[10px] font-black uppercase text-gray-400 tracking-[0.2em] border-b border-gray-100">
+              <thead className="bg-gray-100/50 text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] border-b">
                 <tr>
-                  <th className="px-10 py-6">Profil</th>
-                  <th className="px-10 py-6">{activeTab === 'students' ? 'Formation' : 'Rôle'}</th>
-                  <th className="px-10 py-6 text-right">Actions</th>
+                  <th className="px-12 py-8">Utilisateur</th>
+                  <th className="px-12 py-8">Rôle / Statut</th>
+                  <th className="px-12 py-8 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredUsers.map(u => (
                   <tr key={u.id} className="hover:bg-ivoryGreen/[0.02] transition-colors group">
-                    <td className="px-10 py-8">
-                      <div className="flex items-center gap-4">
-                        <img src={u.avatar} className="w-14 h-14 rounded-2xl object-cover border-4 border-white shadow-lg" />
+                    <td className="px-12 py-10">
+                      <div className="flex items-center gap-6">
+                        <img src={u.avatar} className="w-20 h-20 rounded-[32px] object-cover border-4 border-white shadow-xl" />
                         <div>
-                          <p className="font-black text-gray-900 text-lg leading-none mb-1">{u.firstName} {u.name}</p>
-                          <p className="text-xs font-bold text-gray-400">{u.email}</p>
+                          <p className="font-black text-gray-900 text-2xl tracking-tighter mb-1">{u.firstName} {u.name}</p>
+                          <p className="text-xs font-bold text-gray-400 tracking-wide uppercase">{u.email}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-10 py-8">
-                      {activeTab === 'students' ? (
-                        <div className="flex items-center gap-2">
-                           <span className="w-2 h-2 bg-ivoryOrange rounded-full"></span>
-                           <span className="text-sm font-black text-gray-600 uppercase">
-                             {courses.find(c => c.id === enrollments.find(e => e.userId === u.id)?.courseId)?.title || "Aucun"}
-                           </span>
-                        </div>
-                      ) : (
-                        <span className="px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-black uppercase text-gray-400">{u.role}</span>
-                      )}
+                    <td className="px-12 py-10">
+                      <span className="px-6 py-2 bg-white border border-gray-100 rounded-full text-[10px] font-black uppercase text-ivoryGreen tracking-widest shadow-sm">{u.role}</span>
                     </td>
-                    <td className="px-10 py-8 text-right">
-                      <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditingUser(u); setUserFormData(u); setShowUserModal(true); }} className="p-3 text-ivoryGreen hover:bg-ivoryGreen/10 rounded-xl transition-all"><Edit2 size={18} /></button>
-                        <button onClick={() => setShowDeleteConfirm(u.id)} className="p-3 text-red-400 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                    <td className="px-12 py-10 text-right">
+                      <div className="flex justify-end gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                        <button onClick={() => { setEditingUser(u); setUserFormData(u); setShowUserModal(true); }} className="p-4 text-ivoryGreen hover:bg-ivoryGreen/10 rounded-2xl transition-all shadow-sm bg-white border border-gray-50"><Edit2 size={20} /></button>
+                        <button onClick={() => setShowDeleteConfirm(u.id)} className="p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all shadow-sm bg-white border border-gray-50"><Trash2 size={20} /></button>
                       </div>
                     </td>
                   </tr>
@@ -243,64 +224,57 @@ const AdminPanel: React.FC<{ currentUserId: string }> = ({ currentUserId }) => {
         </div>
       )}
 
-      {/* Popups de confirmation de suppression */}
+      {/* POPUP DE CONFIRMATION (ADMIN) */}
       {(showDeleteConfirm || showCourseDeleteConfirm) && (
-        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="bg-white p-12 rounded-[48px] max-w-md w-full text-center space-y-8 animate-in zoom-in duration-300">
-            <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border-8 border-white shadow-xl">
-               <AlertTriangle size={48} />
+        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
+          <div className="bg-white p-16 rounded-[64px] max-w-lg w-full text-center space-y-10 animate-in zoom-in duration-300 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
+            <div className="w-32 h-32 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border-8 border-white shadow-2xl transform hover:rotate-12 transition-transform">
+               <AlertTriangle size={64} />
             </div>
-            <h3 className="text-3xl font-black text-gray-900">Valider suppression ?</h3>
-            <p className="text-gray-400 font-bold">Cette action est définitive. Les données seront effacées du système Akwaba.</p>
-            <div className="flex gap-4">
-              <button onClick={() => { setShowDeleteConfirm(null); setShowCourseDeleteConfirm(null); }} className="flex-1 py-4 bg-gray-100 rounded-2xl font-black text-gray-400 hover:bg-gray-200 transition-all">ANNULER</button>
-              <button onClick={() => showDeleteConfirm ? confirmDelete(showDeleteConfirm) : confirmCourseDelete(showCourseDeleteConfirm!)} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl hover:bg-red-600 transition-all uppercase tracking-widest text-xs">CONFIRMER</button>
+            <div>
+              <h3 className="text-4xl font-black text-gray-900 tracking-tighter">Action Irréversible</h3>
+              <p className="text-gray-400 font-bold text-xl mt-4">Voulez-vous vraiment supprimer cet élément ? Toutes les données liées seront effacées.</p>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Reassign */}
-      {showEnrollModal && (
-        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white p-10 rounded-[48px] max-w-md w-full space-y-8 animate-in slide-in-from-bottom-10 duration-500 shadow-2xl">
-            <h3 className="text-3xl font-black text-ivoryOrange tracking-tighter">Réaffecter Élève</h3>
-            <div className="space-y-4">
-              <select onChange={e => setEnrollFormData({...enrollFormData, userId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900">
-                <option value="">Sélectionner Apprenant</option>
-                {users.filter(u => u.role === UserRole.STUDENT).map(u => <option key={u.id} value={u.id}>{u.firstName} {u.name}</option>)}
-              </select>
-              <select onChange={e => setEnrollFormData({...enrollFormData, courseId: e.target.value})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900">
-                <option value="">Sélectionner Nouveau Cours</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setShowEnrollModal(false)} className="flex-1 py-4 text-gray-400 font-black text-xs uppercase">Annuler</button>
-              <button onClick={handleReassign} className="flex-1 py-4 bg-ivoryGreen text-white rounded-2xl font-black shadow-lg">RE-AFFECTER</button>
+            <div className="flex gap-6 pt-6">
+              <button onClick={() => { setShowDeleteConfirm(null); setShowCourseDeleteConfirm(null); }} className="flex-1 py-6 bg-gray-100 rounded-[32px] font-black text-gray-400 hover:bg-gray-200 transition-all uppercase tracking-widest text-xs">ANNULER</button>
+              <button onClick={() => showDeleteConfirm ? confirmDelete(showDeleteConfirm) : confirmCourseDelete(showCourseDeleteConfirm!)} className="flex-1 py-6 bg-red-500 text-white rounded-[32px] font-black shadow-2xl shadow-red-100 hover:bg-red-600 transition-all uppercase tracking-widest text-xs">OUI, SUPPRIMER</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* User Edit Modal */}
+      {/* MODAL AJOUT/EDIT UTILISATEUR */}
       {showUserModal && (
-        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 overflow-y-auto">
-          <form onSubmit={handleSaveUser} className="bg-white w-full max-w-xl rounded-[40px] overflow-hidden shadow-2xl">
-            <div className="bg-ivoryOrange p-8 text-white flex justify-between items-center">
-              <h3 className="text-3xl font-black">{editingUser ? 'Éditer Profil' : 'Nouveau Profil'}</h3>
-              <button type="button" onClick={() => setShowUserModal(false)} className="bg-white/10 p-2 rounded-full"><X size={24}/></button>
+        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveUser} className="bg-white w-full max-w-2xl rounded-[64px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-20 duration-500 border border-white">
+            <div className="bg-ivoryOrange p-12 text-white flex justify-between items-center relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+               <h3 className="text-4xl font-black tracking-tighter relative z-10">{editingUser ? 'Modifier Profil' : 'Nouvel Akwabien'}</h3>
+               <button type="button" onClick={() => setShowUserModal(false)} className="bg-white/20 p-4 rounded-full relative z-10 hover:bg-white/30 transition-all"><X size={28}/></button>
             </div>
-            <div className="p-10 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                 <input required value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} placeholder="Nom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
-                 <input required value={userFormData.firstName || ''} onChange={e => setUserFormData({...userFormData, firstName: e.target.value})} placeholder="Prénom" className="p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
+            <div className="p-16 space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nom</label>
+                    <input required value={userFormData.name || ''} onChange={e => setUserFormData({...userFormData, name: e.target.value})} className="w-full p-5 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none shadow-inner" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Prénom</label>
+                    <input required value={userFormData.firstName || ''} onChange={e => setUserFormData({...userFormData, firstName: e.target.value})} className="w-full p-5 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none shadow-inner" />
+                 </div>
               </div>
-              <input required type="email" value={userFormData.email || ''} onChange={e => setUserFormData({...userFormData, email: e.target.value})} placeholder="Email" className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none" />
-              <select value={userFormData.role} onChange={e => setUserFormData({...userFormData, role: e.target.value as UserRole})} className="w-full p-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none appearance-none">
-                {Object.values(UserRole).map(role => <option key={role} value={role}>{role.toUpperCase()}</option>)}
-              </select>
-              <button type="submit" className="w-full py-5 bg-ivoryGreen text-white rounded-2xl font-black text-xl shadow-xl uppercase">Enregistrer</button>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Adresse Email Professionnelle</label>
+                 <input required type="email" value={userFormData.email || ''} onChange={e => setUserFormData({...userFormData, email: e.target.value})} placeholder="nom@akwaba.ci" className="w-full p-5 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-bold outline-none shadow-inner" />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Rôle Système</label>
+                 <select value={userFormData.role} onChange={e => setUserFormData({...userFormData, role: e.target.value as UserRole})} className="w-full p-5 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white text-gray-900 font-black outline-none appearance-none cursor-pointer shadow-inner">
+                   {Object.values(UserRole).map(role => <option key={role} value={role}>{role.toUpperCase()}</option>)}
+                 </select>
+              </div>
+              <button type="submit" className="w-full py-6 bg-ivoryGreen text-white rounded-[32px] font-black text-2xl shadow-2xl hover:bg-green-700 hover:-translate-y-1 active:translate-y-0 transition-all uppercase tracking-tighter mt-10">Valider Profil</button>
             </div>
           </form>
         </div>
