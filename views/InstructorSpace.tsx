@@ -1,116 +1,381 @@
 
-import React, { useState } from 'react';
-import { UserRole } from '../types';
-import { Plus, Video, FileText, CheckSquare, Save, Trash2, Link as LinkIcon, Upload, HelpCircle, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { UserRole, Course, Module, QuizQuestion, ChatMessage, User } from '../types';
+import { storage } from '../utils/storage';
+import { Plus, Video, Trash2, Edit, Book, BrainCircuit, X, CheckCircle2, ListPlus, MessageSquare, Send, Paperclip, User as UserIcon, Save, AlertTriangle, ChevronRight } from 'lucide-react';
+import ProfileEdit from '../components/ProfileEdit';
+import ChatWindow from '../components/ChatWindow';
 
-interface InstructorSpaceProps {
-  userRole: UserRole;
-}
-
-const InstructorSpace: React.FC<InstructorSpaceProps> = ({ userRole }) => {
-  const [activeTab, setActiveTab] = useState<'create' | 'quiz' | 'submissions'>('create');
-  const [videoSource, setVideoSource] = useState<'file' | 'url'>('url');
+const InstructorSpace: React.FC<{ userRole: UserRole, currentUserId: string, forceEditId?: string | null }> = ({ userRole, currentUserId, forceEditId }) => {
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'messages' | 'profile'>(forceEditId ? 'create' : 'list');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(forceEditId || null);
+  const [user, setUser] = useState<User | null>(null);
   
-  const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-ivoryOrange outline-none text-gray-900 font-medium placeholder:text-gray-400";
+  // UI States
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  // Course State
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('Business');
+  const [newCategory, setNewCategory] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [desc, setDesc] = useState('');
+  const [thumbnail, setThumbnail] = useState('');
+  const [modules, setModules] = useState<Module[]>([]);
+
+  // Module Modal State
+  const [showModuleModal, setShowModuleModal] = useState(false);
+  const [currentModIdx, setCurrentModIdx] = useState<number | null>(null);
+  const [modForm, setModForm] = useState<Module>({ id: '', title: '', videoUrl: '', videoType: 'url', description: '', quiz: [] });
+
+  const loadCourses = () => {
+    const all = storage.getCourses();
+    setCourses(all.filter(c => c.instructorId === currentUserId || userRole === UserRole.ADMIN));
+    if (forceEditId) {
+      const c = all.find(x => x.id === forceEditId);
+      if (c) { 
+        setTitle(c.title); setCategory(c.category); setDesc(c.description); setModules(c.modules); setThumbnail(c.thumbnail);
+      }
+    }
+    const currentUser = storage.getUsers().find(u => u.id === currentUserId);
+    if (currentUser) setUser(currentUser);
+  };
+
+  useEffect(() => {
+    loadCourses();
+    window.addEventListener('storage_update', loadCourses);
+    return () => window.removeEventListener('storage_update', loadCourses);
+  }, [currentUserId, forceEditId]);
+
+  const handleSaveCourse = (isDraft: boolean) => {
+    if (!title) return alert("Le titre du cours est obligatoire !");
+    const finalCategory = isAddingCategory ? newCategory : category;
+    const finalThumbnail = thumbnail || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800`;
+    const all = storage.getCourses();
+    
+    const course: Course = {
+      id: editingId || `c-${Date.now()}`,
+      title, 
+      category: finalCategory, 
+      description: desc,
+      instructor: user ? `${user.firstName} ${user.name}` : "Formateur",
+      instructorId: editingId ? (all.find(x => x.id === editingId)?.instructorId || currentUserId) : currentUserId,
+      thumbnail: finalThumbnail,
+      createdAt: editingId ? (all.find(x => x.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+      isDraft, 
+      modules
+    };
+
+    const updated = editingId ? all.map(c => c.id === editingId ? course : c) : [course, ...all];
+    storage.saveCourses(updated);
+    alert(editingId ? "Cours mis à jour !" : "Nouveau cours publié !");
+    if (!forceEditId) reset();
+  };
+
+  const handleDeleteCourse = (id: string) => {
+    const updated = storage.getCourses().filter(c => c.id !== id);
+    storage.saveCourses(updated);
+    setShowDeleteConfirm(null);
+  };
+
+  const reset = () => {
+    setTitle(''); setCategory('Business'); setDesc(''); setModules([]); setEditingId(null); setActiveTab('list'); setIsAddingCategory(false); setThumbnail('');
+  };
+
+  const addModule = () => {
+    setModForm({ id: `m-${Date.now()}`, title: '', videoUrl: '', videoType: 'url', description: '', quiz: [] });
+    setCurrentModIdx(null);
+    setShowModuleModal(true);
+  };
+
+  const saveModule = () => {
+    if (!modForm.title) return alert("Le titre du module est requis.");
+    const newModules = [...modules];
+    if (currentModIdx !== null) newModules[currentModIdx] = modForm;
+    else newModules.push(modForm);
+    setModules(newModules);
+    setShowModuleModal(false);
+  };
+
+  // QUIZ EDITOR LOGIC
+  const addQuizQuestion = () => {
+    const newQ: QuizQuestion = { id: `q-${Date.now()}`, text: '', options: ['', ''], correctIndex: 0 };
+    setModForm({ ...modForm, quiz: [...(modForm.quiz || []), newQ] });
+  };
+
+  const updateQuestion = (qId: string, text: string) => {
+    setModForm({
+      ...modForm,
+      quiz: modForm.quiz?.map(q => q.id === qId ? { ...q, text } : q)
+    });
+  };
+
+  const updateOption = (qId: string, optIdx: number, val: string) => {
+    setModForm({
+      ...modForm,
+      quiz: modForm.quiz?.map(q => q.id === qId ? {
+        ...q,
+        options: q.options.map((o, i) => i === optIdx ? val : o)
+      } : q)
+    });
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="container mx-auto px-4 py-8 max-w-7xl animate-in fade-in duration-500 pb-32">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Espace {userRole}</h1>
-          <p className="text-gray-500">Concevez des parcours pédagogiques d'excellence.</p>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Tableau de Bord</h1>
+          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.3em] mt-2">ESPACE {userRole.toUpperCase()} AKWABA</p>
         </div>
-        <div className="flex bg-white p-1 rounded-2xl shadow-sm border">
-          <button onClick={() => setActiveTab('create')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'create' ? 'bg-ivoryGreen text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>Nouveau Cours</button>
-          <button onClick={() => setActiveTab('quiz')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'quiz' ? 'bg-ivoryGreen text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>Quiz Builder</button>
-          <button onClick={() => setActiveTab('submissions')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'submissions' ? 'bg-ivoryGreen text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>Évaluations</button>
-        </div>
+        {!forceEditId && (
+          <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100">
+            {(['list', 'create', 'messages', 'profile'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all uppercase ${activeTab === tab ? 'bg-ivoryGreen text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}>
+                {tab === 'list' ? 'Mes Cours' : tab === 'create' ? 'Contenu' : tab === 'messages' ? 'Chat' : 'Profil'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {activeTab === 'create' && (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Video className="text-ivoryOrange" /> Configuration du Module
-              </h2>
-              
-              <div className="space-y-6">
-                <input placeholder="Titre du module" className={inputClass} />
-                
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <label className="block text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Source de la vidéo</label>
-                  <div className="flex gap-4 mb-4">
-                    <button onClick={() => setVideoSource('url')} className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 font-bold transition-all ${videoSource === 'url' ? 'border-ivoryOrange bg-white text-ivoryOrange' : 'border-gray-200 bg-transparent text-gray-400'}`}>
-                      <LinkIcon size={18} /> URL Vidéo
-                    </button>
-                    <button onClick={() => setVideoSource('file')} className={`flex-1 py-3 rounded-xl border-2 flex items-center justify-center gap-2 font-bold transition-all ${videoSource === 'file' ? 'border-ivoryOrange bg-white text-ivoryOrange' : 'border-gray-200 bg-transparent text-gray-400'}`}>
-                      <Upload size={18} /> Fichier Local
-                    </button>
-                  </div>
-
-                  {videoSource === 'url' ? (
-                    <div className="relative">
-                      <input placeholder="Coller l'URL (YouTube, Vimeo...)" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-ivoryOrange outline-none text-gray-900 font-medium" />
-                      <LinkIcon className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center">
-                      <p className="text-sm font-medium text-gray-400">Cliquez pour téléverser (.mp4, .mov)</p>
-                    </div>
-                  )}
+      {activeTab === 'profile' ? (
+        <ProfileEdit userId={currentUserId} />
+      ) : activeTab === 'messages' ? (
+        <ChatWindow currentUser={user!} />
+      ) : activeTab === 'list' ? (
+        /* LISTE DES COURS */
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+          {courses.map(c => (
+            <div key={c.id} className="bg-white rounded-[48px] overflow-hidden border border-gray-100 shadow-sm group hover:shadow-2xl transition-all">
+              <div className="h-48 relative">
+                <img src={c.thumbnail} className="w-full h-full object-cover" />
+                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl text-[10px] font-black text-ivoryGreen uppercase">{c.category}</div>
+                {c.isDraft && <div className="absolute top-4 right-4 bg-yellow-400 text-white text-[10px] font-black px-4 py-2 rounded-2xl">BROUILLON</div>}
+              </div>
+              <div className="p-10">
+                <h3 className="text-2xl font-black text-gray-900 mb-8 leading-tight line-clamp-2">{c.title}</h3>
+                <div className="flex gap-3">
+                  <button onClick={() => { 
+                    setEditingId(c.id); setTitle(c.title); setCategory(c.category); setDesc(c.description); setModules(c.modules); setThumbnail(c.thumbnail); setActiveTab('create'); 
+                  }} className="flex-1 py-4 bg-gray-50 text-gray-900 rounded-2xl font-black text-xs hover:bg-ivoryOrange hover:text-white transition-all uppercase tracking-widest">Modifier</button>
+                  <button onClick={() => setShowDeleteConfirm(c.id)} className="p-4 text-red-400 bg-red-50 rounded-2xl hover:bg-red-100 transition-all"><Trash2 size={24} /></button>
                 </div>
-
-                <textarea rows={3} placeholder="Description et instructions..." className={inputClass}></textarea>
-                
-                <button className="w-full py-4 bg-ivoryOrange text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-600 shadow-lg">
-                  <Save size={20} /> Enregistrer ce module
-                </button>
               </div>
             </div>
-          )}
+          ))}
+          <button onClick={() => { reset(); setActiveTab('create'); }} className="h-full min-h-[300px] border-8 border-dashed border-gray-100 rounded-[48px] flex flex-col items-center justify-center text-gray-300 hover:text-ivoryGreen hover:border-ivoryGreen transition-all group p-10">
+            <Plus size={64} className="mb-6 group-hover:scale-110 transition-transform" />
+            <p className="font-black text-sm uppercase tracking-[0.3em]">Nouveau Parcours</p>
+          </button>
+        </div>
+      ) : (
+        /* EDITEUR DE COURS */
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-12">
+            <div className="bg-white rounded-[48px] p-12 shadow-xl border border-gray-50 space-y-10">
+              <h2 className="text-3xl font-black text-ivoryOrange tracking-tighter">Configuration du Cours</h2>
+              <div className="space-y-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Titre de la formation</label>
+                  <input 
+                    value={title} 
+                    onChange={e => setTitle(e.target.value)} 
+                    className="w-full p-6 rounded-3xl border-2 border-gray-50 bg-gray-50 text-gray-900 font-bold focus:bg-white focus:border-ivoryOrange outline-none transition-all text-xl" 
+                  />
+                </div>
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Catégorie</label>
+                    <div className="flex gap-2">
+                      {!isAddingCategory ? (
+                        <>
+                          <select value={category} onChange={e => setCategory(e.target.value)} className="flex-grow p-6 rounded-3xl border-2 border-gray-50 bg-gray-50 text-gray-900 font-bold outline-none appearance-none cursor-pointer">
+                            <option>Business</option><option>Agriculture</option><option>Tech</option><option>Santé</option><option>Artisanat</option>
+                          </select>
+                          <button onClick={() => setIsAddingCategory(true)} className="p-6 bg-ivoryGreen/10 text-ivoryGreen rounded-3xl hover:bg-ivoryGreen hover:text-white transition-all"><Plus size={24}/></button>
+                        </>
+                      ) : (
+                        <div className="flex-grow flex gap-2">
+                          <input autoFocus value={newCategory} onChange={e => setNewCategory(e.target.value)} placeholder="Nom..." className="flex-grow p-6 rounded-3xl border-2 border-ivoryOrange bg-white text-gray-900 font-bold outline-none" />
+                          <button onClick={() => setIsAddingCategory(false)} className="p-6 bg-gray-100 text-gray-400 rounded-3xl"><X size={24}/></button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Vignette (URL Image)</label>
+                    <input 
+                      value={thumbnail} 
+                      onChange={e => setThumbnail(e.target.value)} 
+                      placeholder="https://..." 
+                      className="w-full p-6 rounded-3xl border-2 border-gray-50 bg-gray-50 text-gray-900 font-bold focus:bg-white focus:border-ivoryOrange outline-none transition-all" 
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description détaillée</label>
+                  <textarea 
+                    value={desc} 
+                    onChange={e => setDesc(e.target.value)} 
+                    rows={4} 
+                    className="w-full p-6 rounded-3xl border-2 border-gray-50 bg-gray-50 text-gray-900 font-bold focus:bg-white focus:border-ivoryOrange outline-none transition-all" 
+                    placeholder="Objectifs pédagogiques, prérequis..."
+                  ></textarea>
+                </div>
+              </div>
+            </div>
 
-          {activeTab === 'quiz' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <CheckSquare className="text-ivoryGreen" /> Quiz Builder V2
-                </h2>
-                
-                <div className="p-6 bg-ivoryGreen/5 border-2 border-ivoryGreen/20 rounded-2xl mb-8">
-                  <div className="flex items-start gap-4 mb-6">
-                    <div className="w-10 h-10 bg-ivoryGreen text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
-                    <div className="flex-grow">
-                      <input placeholder="Intitulé de la question..." className="w-full bg-transparent border-b-2 border-ivoryGreen/30 py-2 text-lg font-bold outline-none focus:border-ivoryGreen text-gray-900" />
-                      <div className="mt-6 space-y-3">
-                        {[0,1,2].map(i => (
-                          <div key={i} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 group shadow-sm">
-                            <input type="radio" name="correct" className="text-ivoryGreen w-5 h-5" />
-                            <input placeholder={`Réponse ${i+1}`} className="flex-grow bg-transparent outline-none text-sm text-gray-900 font-medium" />
-                            <button className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
-                          </div>
-                        ))}
-                        <button className="text-xs font-bold text-ivoryGreen flex items-center gap-1 hover:underline ml-2">
-                          <Plus size={14} /> Ajouter une option
-                        </button>
+            {/* Liste des Modules */}
+            <div className="space-y-8">
+              <div className="flex justify-between items-end">
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Modules de formation</h2>
+                <button onClick={addModule} className="px-8 py-4 bg-ivoryGreen text-white rounded-2xl font-black text-xs flex items-center gap-2 shadow-xl shadow-green-100 hover:scale-105 transition-all"><ListPlus size={20}/> AJOUTER MODULE</button>
+              </div>
+              <div className="grid gap-6">
+                {modules.map((m, i) => (
+                  <div key={m.id} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center justify-between group hover:border-ivoryOrange transition-all">
+                    <div className="flex items-center gap-6">
+                      <div className="w-16 h-16 bg-ivoryOrange/10 rounded-3xl flex items-center justify-center text-ivoryOrange font-black text-xl">{i+1}</div>
+                      <div>
+                        <h4 className="font-black text-xl text-gray-900">{m.title}</h4>
+                        <div className="flex gap-4 mt-2">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><Video size={12}/> {m.videoType === 'url' ? 'YouTube/URL' : 'Fichier'}</span>
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><BrainCircuit size={12}/> {m.quiz?.length || 0} Questions Quiz</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setModForm(m); setCurrentModIdx(i); setShowModuleModal(true); }} className="p-4 bg-gray-50 rounded-2xl text-gray-400 hover:text-ivoryOrange transition-all"><Edit size={20}/></button>
+                      <button onClick={() => setModules(modules.filter((_, idx) => idx !== i))} className="p-4 bg-red-50 rounded-2xl text-red-400 hover:bg-red-100 transition-all"><Trash2 size={20}/></button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button className="flex-grow py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-bold hover:border-ivoryGreen hover:text-ivoryGreen transition-all flex items-center justify-center gap-2">
-                    <Plus size={20} /> Nouvelle Question
-                  </button>
-                  <button className="px-8 py-4 bg-ivoryGreen text-white rounded-2xl font-bold shadow-lg hover:bg-green-800 transition-all">
-                    Publier le Quiz
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="space-y-8">
+             <div className="bg-ivoryGreen p-12 rounded-[56px] text-white shadow-2xl sticky top-24">
+                <h3 className="text-3xl font-black mb-10 flex items-center gap-4"><Book size={32}/> Actions</h3>
+                <div className="space-y-4">
+                   <button onClick={() => handleSaveCourse(false)} className="w-full py-6 bg-ivoryOrange rounded-3xl font-black text-xl shadow-xl hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-4"><Send size={24}/> {editingId ? 'METTRE À JOUR' : 'PUBLIER LE COURS'}</button>
+                   <button onClick={() => handleSaveCourse(true)} className="w-full py-6 bg-white/10 hover:bg-white/20 rounded-3xl font-black text-sm uppercase tracking-widest transition-all">Enregistrer Brouillon</button>
+                </div>
+                {!forceEditId && (
+                  <div className="mt-10 pt-10 border-t border-white/10 text-center">
+                    <button onClick={reset} className="text-[10px] font-black opacity-40 hover:opacity-100 uppercase tracking-[0.3em] transition-all">Annuler et quitter</button>
+                  </div>
+                )}
+             </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* POPUP CONFIRMATION SUPPRESSION */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
+          <div className="bg-white p-12 rounded-[48px] max-w-md w-full text-center space-y-8 animate-in zoom-in duration-300">
+            <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border-8 border-white shadow-xl">
+               <AlertTriangle size={48} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-black text-gray-900">Supprimer ce cours ?</h3>
+              <p className="text-gray-400 font-bold mt-2">Cette action supprimera définitivement le contenu et les quiz associés.</p>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-black text-gray-400 hover:bg-gray-200 transition-all">ANNULER</button>
+              <button onClick={() => handleDeleteCourse(showDeleteConfirm)} className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-600 transition-all uppercase tracking-widest text-xs">OUI, SUPPRIMER</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIGURATION MODULE ET QUIZ */}
+      {showModuleModal && (
+        <div className="fixed inset-0 bg-gray-900/95 backdrop-blur-md z-[300] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-5xl rounded-[56px] overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-8">
+             <div className="bg-ivoryOrange p-10 text-white flex justify-between items-center">
+               <h3 className="text-4xl font-black tracking-tighter">Éditeur de Module</h3>
+               <button onClick={() => setShowModuleModal(false)} className="bg-white/10 p-3 rounded-full hover:bg-white/20 transition-all"><X size={32}/></button>
+             </div>
+             
+             <div className="p-12 space-y-12">
+                <div className="grid md:grid-cols-2 gap-10">
+                   {/* INFOS MODULE */}
+                   <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Titre du module</label>
+                        <input value={modForm.title} onChange={e => setModForm({...modForm, title: e.target.value})} className="w-full p-6 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lien Vidéo (YouTube / MP4)</label>
+                        <input value={modForm.videoUrl} onChange={e => setModForm({...modForm, videoUrl: e.target.value})} placeholder="https://youtube.com/..." className="w-full p-6 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 transition-all" />
+                      </div>
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Description du module</label>
+                      <textarea value={modForm.description} onChange={e => setModForm({...modForm, description: e.target.value})} rows={5} className="w-full p-6 rounded-3xl bg-gray-50 border-2 border-transparent focus:border-ivoryOrange focus:bg-white outline-none font-bold text-gray-900 transition-all"></textarea>
+                   </div>
+                </div>
+
+                {/* QUIZ BUILDER */}
+                <div className="pt-12 border-t border-gray-100">
+                   <div className="flex justify-between items-center mb-8">
+                      <h4 className="text-3xl font-black text-gray-900 flex items-center gap-3"><BrainCircuit className="text-ivoryOrange" /> Quiz de Validation</h4>
+                      <button onClick={addQuizQuestion} className="px-6 py-3 bg-ivoryOrange/10 text-ivoryOrange rounded-2xl font-black text-xs hover:bg-ivoryOrange hover:text-white transition-all">+ AJOUTER QUESTION</button>
+                   </div>
+                   
+                   <div className="space-y-8">
+                      {modForm.quiz?.map((q, qIdx) => (
+                        <div key={q.id} className="bg-gray-50 p-8 rounded-[40px] space-y-6 relative group border-2 border-transparent hover:border-ivoryOrange transition-all">
+                           <button onClick={() => setModForm({...modForm, quiz: modForm.quiz?.filter(x => x.id !== q.id)})} className="absolute top-6 right-6 p-2 text-red-300 hover:text-red-500 transition-colors"><Trash2 size={20}/></button>
+                           <div className="flex gap-4 items-start">
+                             <span className="w-10 h-10 bg-ivoryOrange text-white rounded-xl flex items-center justify-center font-black flex-shrink-0">{qIdx+1}</span>
+                             <input 
+                              value={q.text} 
+                              onChange={e => updateQuestion(q.id, e.target.value)} 
+                              placeholder="Énoncé de la question..." 
+                              className="flex-grow bg-transparent border-b-2 border-gray-200 focus:border-ivoryOrange outline-none p-2 font-bold text-gray-900 text-lg" 
+                             />
+                           </div>
+                           <div className="grid md:grid-cols-2 gap-4 ml-14">
+                              {q.options.map((opt, optIdx) => (
+                                <div key={optIdx} className="flex items-center gap-3">
+                                   <button 
+                                    onClick={() => setModForm({...modForm, quiz: modForm.quiz?.map(x => x.id === q.id ? {...x, correctIndex: optIdx} : x)})}
+                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${q.correctIndex === optIdx ? 'bg-ivoryGreen border-ivoryGreen' : 'border-gray-300'}`}
+                                   >
+                                      {q.correctIndex === optIdx && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                   </button>
+                                   <input 
+                                    value={opt} 
+                                    onChange={e => updateOption(q.id, optIdx, e.target.value)} 
+                                    placeholder={`Option ${optIdx+1}`} 
+                                    className={`flex-grow p-4 rounded-2xl border-2 transition-all font-bold text-sm ${q.correctIndex === optIdx ? 'bg-ivoryGreen/5 border-ivoryGreen text-gray-900' : 'bg-white border-transparent text-gray-500 focus:border-gray-200'}`} 
+                                   />
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      ))}
+                      {(!modForm.quiz || modForm.quiz.length === 0) && (
+                        <div className="py-12 text-center border-4 border-dashed border-gray-100 rounded-[40px]">
+                           <p className="text-gray-300 font-black uppercase text-xs tracking-widest">Aucune question configurée</p>
+                        </div>
+                      )}
+                   </div>
+                </div>
+
+                <div className="flex gap-4 pt-10">
+                   <button onClick={() => setShowModuleModal(false)} className="flex-1 py-6 bg-gray-100 rounded-3xl font-black text-gray-400 hover:bg-gray-200 transition-all uppercase tracking-widest text-xs">Annuler</button>
+                   <button onClick={saveModule} className="flex-[2] py-6 bg-ivoryGreen text-white rounded-3xl font-black text-xl shadow-xl hover:scale-105 active:scale-95 transition-all">ENREGISTRER LE MODULE</button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

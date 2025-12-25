@@ -1,35 +1,43 @@
 
-import React from 'react';
-import { Search, ChevronRight, Star } from 'lucide-react';
-import { MOCK_COURSES } from '../constants';
+import React, { useEffect, useState } from 'react';
+import { Search, ChevronRight, Star, Clock, BookOpen } from 'lucide-react';
+import { storage } from '../utils/storage';
+import { Course } from '../types';
 
 interface HomeProps {
-  onSelectCourse: () => void;
+  onSelectCourse: (course: Course) => void;
 }
 
 const Home: React.FC<HomeProps> = ({ onSelectCourse }) => {
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  useEffect(() => {
+    storage.init();
+    setCourses(storage.getCourses().filter(c => !c.isDraft).slice(0, 5));
+  }, []);
+
   return (
     <div className="pb-20">
       {/* Hero Section */}
       <section className="bg-ivoryWhite py-24 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-ivoryOrange opacity-5 -skew-x-12 transform translate-x-20"></div>
         <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight">
-              Investissez dans votre <span className="text-ivoryOrange underline decoration-ivoryGreen">avenir</span> avec Akwaba.
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-6xl md:text-7xl font-black text-gray-900 mb-8 leading-[0.9] tracking-tighter">
+              L'avenir se <span className="text-ivoryOrange">construit</span> ici et <span className="text-ivoryGreen underline decoration-8 underline-offset-8">maintenant</span>.
             </h1>
-            <p className="text-xl text-gray-600 mb-10">
-              La plateforme d'apprentissage de référence en Côte d'Ivoire. Des formations certifiantes adaptées au marché local.
+            <p className="text-xl text-gray-500 mb-12 font-medium max-w-2xl mx-auto">
+              Rejoignez des milliers d'ivoiriens qui se forment aux métiers d'aujourd'hui.
             </p>
             
-            <div className="relative max-w-2xl mx-auto">
+            <div className="relative max-w-2xl mx-auto group">
               <input 
                 type="text" 
-                placeholder="Que veux-tu apprendre aujourd'hui ?" 
-                className="w-full pl-12 pr-4 py-5 rounded-2xl border-2 border-gray-100 shadow-xl focus:border-ivoryOrange focus:ring-0 text-lg outline-none transition-all"
+                placeholder="Ex: Agriculture, Digital, Vannerie..." 
+                className="w-full pl-14 pr-4 py-6 rounded-[32px] border-4 border-gray-100 shadow-2xl focus:border-ivoryOrange transition-all outline-none font-bold text-lg"
               />
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={24} />
-              <button className="absolute right-3 top-3 bottom-3 bg-ivoryOrange hover:bg-orange-600 text-white px-8 rounded-xl font-bold transition-colors">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-ivoryOrange" size={24} />
+              <button className="absolute right-3 top-3 bottom-3 bg-ivoryOrange hover:bg-orange-600 text-white px-10 rounded-2xl font-black transition-all">
                 Chercher
               </button>
             </div>
@@ -37,91 +45,53 @@ const Home: React.FC<HomeProps> = ({ onSelectCourse }) => {
         </div>
       </section>
 
-      {/* Featured Courses */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="flex justify-between items-end mb-10">
+      {/* Course List */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="flex justify-between items-end mb-12">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Cours à la une</h2>
-            <div className="h-1.5 w-24 bg-ivoryGreen mt-2 rounded-full"></div>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight">Cours populaires</h2>
+            <div className="h-2 w-20 bg-ivoryGreen mt-3 rounded-full"></div>
           </div>
-          <button className="text-ivoryOrange font-bold flex items-center hover:underline">
-            Voir tout <ChevronRight size={20} />
-          </button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {MOCK_COURSES.map(course => (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+          {courses.map(course => (
             <div 
               key={course.id} 
-              className="bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100 hover:shadow-2xl transition-all group cursor-pointer"
-              onClick={onSelectCourse}
+              className="bg-white rounded-[40px] overflow-hidden shadow-sm border border-gray-50 hover:shadow-2xl hover:-translate-y-2 transition-all group cursor-pointer"
+              onClick={() => onSelectCourse(course)}
             >
-              <div className="relative">
-                <img src={course.thumbnail} alt={course.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-ivoryGreen">
+              <div className="relative h-56">
+                <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                <div className="absolute top-6 left-6 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl text-[10px] font-black text-ivoryGreen uppercase tracking-widest">
                   {course.category}
                 </div>
               </div>
-              <div className="p-6">
-                <div className="flex items-center space-x-1 text-yellow-500 mb-2">
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <Star size={14} fill="currentColor" />
-                  <span className="text-xs text-gray-400 ml-1">(4.9)</span>
-                </div>
-                <h3 className="text-xl font-bold mb-2 group-hover:text-ivoryOrange transition-colors">{course.title}</h3>
-                <p className="text-gray-500 text-sm mb-4 line-clamp-2">{course.description}</p>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <span className="text-sm font-medium text-gray-700">Par {course.instructor}</span>
-                  <div className="w-8 h-8 rounded-full bg-ivoryGreen/10 flex items-center justify-center text-ivoryGreen">
-                    <ChevronRight size={18} />
+              <div className="p-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex text-yellow-500">
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
                   </div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase">Top Vente</span>
+                </div>
+                <h3 className="text-2xl font-black mb-4 leading-tight group-hover:text-ivoryOrange transition-colors">{course.title}</h3>
+                
+                <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-ivoryGreen/10 flex items-center justify-center text-ivoryGreen">
+                      <BookOpen size={14} />
+                    </div>
+                    <span className="text-xs font-bold text-gray-500">{course.modules.length} Modules</span>
+                  </div>
+                  <span className="text-xs font-black text-gray-900">PAR {course.instructor.toUpperCase()}</span>
                 </div>
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section className="bg-ivoryGreen py-20 text-white">
-        <div className="container mx-auto px-4 grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="text-4xl font-bold mb-6">Pourquoi Akwaba ?</h2>
-            <p className="text-green-50 text-lg mb-8 leading-relaxed">
-              Nous croyons que le savoir est la clé du développement. Akwaba est conçu pour offrir aux Ivoiriens et aux Ivoiriennes des outils numériques de pointe, accessibles partout, pour se former aux métiers de demain.
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <span className="font-bold">01</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-xl">Contenu Localisé</h4>
-                  <p className="text-green-100 text-sm">Des exemples et des cas concrets ancrés dans la réalité ivoirienne.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                  <span className="font-bold">02</span>
-                </div>
-                <div>
-                  <h4 className="font-bold text-xl">Experts Reconnus</h4>
-                  <p className="text-green-100 text-sm">Apprenez avec les meilleurs formateurs du pays.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="absolute -inset-4 bg-ivoryOrange rounded-3xl -rotate-3 opacity-20"></div>
-            <img 
-              src="https://picsum.photos/seed/ivory-coast/600/400" 
-              alt="Community" 
-              className="rounded-3xl shadow-2xl relative z-10 w-full"
-            />
-          </div>
         </div>
       </section>
     </div>
